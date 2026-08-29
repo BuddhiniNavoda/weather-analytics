@@ -1,6 +1,8 @@
 package com.weatherapp.repository;
 
 import com.weatherapp.dto.OpenWeatherResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Repository;
@@ -9,6 +11,8 @@ import org.springframework.web.client.RestClientResponseException;
 
 @Repository
 public class OpenWeatherMapClient {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenWeatherMapClient.class);
 
     private final RestClient restClient;
     private final String apiKey;
@@ -30,6 +34,7 @@ public class OpenWeatherMapClient {
         }
 
         try {
+            log.info("Calling OpenWeatherMap for city id {}", cityId);
             return restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("id", cityId)

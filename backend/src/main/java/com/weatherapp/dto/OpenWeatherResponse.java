@@ -14,6 +14,7 @@ public class OpenWeatherResponse {
     private Wind wind;
     private Clouds clouds;
     private Sys sys;
+    private long dt;
 
     public long getId() {
         return id;
@@ -69,6 +70,14 @@ public class OpenWeatherResponse {
 
     public void setSys(Sys sys) {
         this.sys = sys;
+    }
+
+    public long getDt() {
+        return dt;
+    }
+
+    public void setDt(long dt) {
+        this.dt = dt;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

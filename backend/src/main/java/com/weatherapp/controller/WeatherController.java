@@ -1,6 +1,7 @@
 package com.weatherapp.controller;
 
 import com.weatherapp.service.WeatherService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +21,9 @@ public class WeatherController {
     @GetMapping("/api/weather")
     public ResponseEntity<?> getWeather() {
         try {
-            return ResponseEntity.ok(weatherService.getWeatherForCities());
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(weatherService.getWeatherForCities());
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
