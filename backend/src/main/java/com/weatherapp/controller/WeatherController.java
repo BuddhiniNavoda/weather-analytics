@@ -1,5 +1,6 @@
 package com.weatherapp.controller;
 
+import com.weatherapp.service.CacheStatusService;
 import com.weatherapp.service.WeatherService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -13,9 +14,11 @@ import java.util.Map;
 public class WeatherController {
 
     private final WeatherService weatherService;
+    private final CacheStatusService cacheStatusService;
 
-    public WeatherController(WeatherService weatherService) {
+    public WeatherController(WeatherService weatherService, CacheStatusService cacheStatusService) {
         this.weatherService = weatherService;
+        this.cacheStatusService = cacheStatusService;
     }
 
     @GetMapping("/api/weather")
@@ -28,5 +31,12 @@ public class WeatherController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/api/cache/status")
+    public ResponseEntity<?> getCacheStatus() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(cacheStatusService.getStatus());
     }
 }

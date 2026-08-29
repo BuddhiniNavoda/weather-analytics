@@ -1,5 +1,6 @@
 package com.weatherapp.service;
 
+import com.weatherapp.cache.WeatherCache;
 import com.weatherapp.dto.CityWeather;
 import com.weatherapp.dto.OpenWeatherResponse;
 import com.weatherapp.dto.WeatherListResponse;
@@ -17,23 +18,36 @@ public class WeatherService {
     private final CityFileReader cityFileReader;
     private final OpenWeatherMapClient openWeatherMapClient;
     private final ComfortCalculator comfortCalculator;
+    private final WeatherCache weatherCache;
 
     public WeatherService(
             CityFileReader cityFileReader,
             OpenWeatherMapClient openWeatherMapClient,
-            ComfortCalculator comfortCalculator
+            ComfortCalculator comfortCalculator,
+            WeatherCache weatherCache
     ) {
         this.cityFileReader = cityFileReader;
         this.openWeatherMapClient = openWeatherMapClient;
         this.comfortCalculator = comfortCalculator;
+        this.weatherCache = weatherCache;
     }
 
     public WeatherListResponse getWeatherForCities() {
+        var cachedList = weatherCache.getProcessed();
+        if (cachedList.isPresent()) {
+            return cachedList.get();
+        }
+
         List<String> cityIds = cityFileReader.readCityIds();
+        weatherCache.clearLastRawLookups(cityIds);
         List<CityWeather> cities = new ArrayList<>();
 
         for (String cityId : cityIds) {
-            OpenWeatherResponse data = openWeatherMapClient.fetchWeather(cityId);
+            OpenWeatherResponse data = weatherCache.getRaw(cityId).orElseGet(() -> {
+                OpenWeatherResponse fresh = openWeatherMapClient.fetchWeather(cityId);
+                weatherCache.putRaw(cityId, fresh);
+                return fresh;
+            });
             cities.add(toCityWeather(data));
         }
 
@@ -42,12 +56,14 @@ public class WeatherService {
             cities.get(i).setRank(i + 1);
         }
 
-        return new WeatherListResponse(
+        WeatherListResponse response = new WeatherListResponse(
                 "openweathermap",
                 Instant.now().toString(),
                 cities.size(),
                 cities
         );
+        weatherCache.putProcessed(response);
+        return response;
     }
 
     private CityWeather toCityWeather(OpenWeatherResponse data) {
