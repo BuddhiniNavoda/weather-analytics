@@ -10,6 +10,9 @@ public class CityWeather {
     private final Integer humidity;
     private final Double windSpeed;
     private final Integer clouds;
+    private final String openWeatherUpdatedAt;
+    private final double score;
+    private int rank;
 
     public CityWeather(
             long id,
@@ -19,7 +22,9 @@ public class CityWeather {
             Double temperature,
             Integer humidity,
             Double windSpeed,
-            Integer clouds
+            Integer clouds,
+            String openWeatherUpdatedAt,
+            double score
     ) {
         this.id = id;
         this.name = name;
@@ -29,6 +34,8 @@ public class CityWeather {
         this.humidity = humidity;
         this.windSpeed = windSpeed;
         this.clouds = clouds;
+        this.openWeatherUpdatedAt = openWeatherUpdatedAt;
+        this.score = score;
     }
 
     public long getId() {
@@ -61,5 +68,21 @@ public class CityWeather {
 
     public Integer getClouds() {
         return clouds;
+    }
+
+    public String getOpenWeatherUpdatedAt() {
+        return openWeatherUpdatedAt;
+    }
+
+    public double getScore() {
+        return score;
+    }
+
+    public int getRank() {
+        return rank;
+    }
+
+    public void setRank(int rank) {
+        this.rank = rank;
     }
 }

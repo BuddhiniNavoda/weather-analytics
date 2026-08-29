@@ -7,6 +7,7 @@ import com.weatherapp.repository.CityFileReader;
 import com.weatherapp.repository.OpenWeatherMapClient;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,10 +16,16 @@ public class WeatherService {
 
     private final CityFileReader cityFileReader;
     private final OpenWeatherMapClient openWeatherMapClient;
+    private final ComfortCalculator comfortCalculator;
 
-    public WeatherService(CityFileReader cityFileReader, OpenWeatherMapClient openWeatherMapClient) {
+    public WeatherService(
+            CityFileReader cityFileReader,
+            OpenWeatherMapClient openWeatherMapClient,
+            ComfortCalculator comfortCalculator
+    ) {
         this.cityFileReader = cityFileReader;
         this.openWeatherMapClient = openWeatherMapClient;
+        this.comfortCalculator = comfortCalculator;
     }
 
     public WeatherListResponse getWeatherForCities() {
@@ -30,7 +37,17 @@ public class WeatherService {
             cities.add(toCityWeather(data));
         }
 
-        return new WeatherListResponse(cities.size(), cities);
+        cities.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+        for (int i = 0; i < cities.size(); i++) {
+            cities.get(i).setRank(i + 1);
+        }
+
+        return new WeatherListResponse(
+                "openweathermap",
+                Instant.now().toString(),
+                cities.size(),
+                cities
+        );
     }
 
     private CityWeather toCityWeather(OpenWeatherResponse data) {
@@ -45,6 +62,12 @@ public class WeatherService {
         Integer clouds = data.getClouds() != null ? data.getClouds().getAll() : null;
         String country = data.getSys() != null ? data.getSys().getCountry() : null;
 
+        String openWeatherUpdatedAt = data.getDt() > 0
+                ? Instant.ofEpochSecond(data.getDt()).toString()
+                : null;
+
+        double score = comfortCalculator.calculate(temperature, humidity, windSpeed);
+
         return new CityWeather(
                 data.getId(),
                 data.getName(),
@@ -53,7 +76,9 @@ public class WeatherService {
                 temperature,
                 humidity,
                 windSpeed,
-                clouds
+                clouds,
+                openWeatherUpdatedAt,
+                score
         );
     }
 }
