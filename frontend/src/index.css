@@ -69,6 +69,13 @@ input {
   padding: 8px 12px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .toolbar {
   display: flex;
   gap: 10px;

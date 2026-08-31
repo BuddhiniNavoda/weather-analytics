@@ -6,6 +6,71 @@ Weather endpoint:
 
 ```text
 GET http://localhost:8080/api/weather
+GET http://localhost:8080/api/cache/status
+```
+
+## Frontend
+
+The UI only **displays** backend `score` and `rank`. It does not calculate comfort.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. Keep Spring Boot running on port 8080.
+
+## Auth0 login
+
+The dashboard is hidden until Auth0 login. The API also requires a JWT.
+
+### 1. Auth0 website (do this first)
+
+1. Create an account at [auth0.com](https://auth0.com/).
+2. **Applications → Create Application** → Single Page Application.
+3. Settings:
+   - Allowed Callback URLs: `http://localhost:5173`
+   - Allowed Logout URLs: `http://localhost:5173`
+   - Allowed Web Origins: `http://localhost:5173`
+4. Copy **Domain** and **Client ID**.
+5. **Applications → APIs → Create API**
+   - Identifier (audience): `https://weather-api` (any URI you choose; use the same everywhere)
+6. **User Management → Users → Create User**
+   - Use the test email and password from the assignment PDF.
+   - Also create your own email so you can log in.
+7. **Authentication → Database** → open your Username-Password connection → turn **on** Disable Sign Ups.
+8. **Authentication → Multifactor** → turn on MFA → **Email**.
+9. **Actions → Login** → new Action. Deny emails that are not on your list (include the assignment test email and yours). Deploy, then add the Action to the Login flow.
+
+### 2. Frontend env
+
+Copy `frontend/.env.example` to `frontend/.env` and paste Domain, Client ID, and the API identifier.
+
+### 3. Backend env
+
+In `backend/application-local.properties` add (issuer must match Domain, with `https://` and a `/` at the end):
+
+```text
+AUTH0_ISSUER_URI=https://YOUR_TENANT.auth0.com/
+AUTH0_AUDIENCE=https://weather-api
+```
+
+Restart Spring Boot and `npm run dev`.
+
+Without a token, `GET /api/weather` returns 401.
+
+- Desktop: table
+- Mobile (under 768px): cards
+- Dark mode button
+- Filter and sort in the browser
+- Temperature trend: one bar each time you load the page (saved in the browser)
+
+Comfort Index unit tests:
+
+```bash
+cd backend
+mvn test
 ```
 
 The **Comfort Index** is calculated on the **backend only**. The frontend must not calculate the score. This file explains the formula in full: definition, equations, and why we chose this logic.
@@ -263,7 +328,38 @@ The frontend should only **display** `score` and `rank`.
 - **22°C and 50% humidity are our defaults.** Someone in Colombo may feel fine at 30°C. This formula compares cities on one global “mild outdoor” scale. It is not local climate.
 - **Wind rule is simple.** A little wind can feel good in heat. Version 1 ignores that so the math stays clear. We can add it later.
 - **OpenWeatherMap current weather does not change every second.** Scores can look the same if you refresh quickly. That is the weather data, not a frozen `cities.json` file.
-- **In-memory ideas later (cache, Auth0) are separate.** This README is only the Comfort Index.
+- **In-memory cache is lost when the server restarts.** After you change the comfort formula, restart the app so old ranks are not kept for 5 minutes.
+
+---
+
+## Server cache (5 minutes)
+
+Weather calls are cached **on the server**, not in the browser.
+
+**Raw cache:** OpenWeatherMap JSON per city ID.  
+**Processed cache:** the full ranked list (score + rank). Preferred, because a HIT skips OpenWeatherMap and the formula.
+
+TTL is 300 seconds (`cache.ttl-seconds` in `application.properties`).
+
+```text
+GET /api/weather
+  → processed HIT  → return saved list
+  → processed MISS → for each city, raw HIT or call OpenWeatherMap
+                   → calculate scores, rank, save processed, return
+```
+
+**HIT** = saved data is younger than 5 minutes.  
+**MISS** = empty or older than 5 minutes.
+
+Debug:
+
+```text
+GET http://localhost:8080/api/cache/status
+```
+
+`lastWeatherRequest` is from the last call to `/api/weather`. `processed` and `raw` show what is in memory now.
+
+How to test: restart the app, call `/api/weather` (MISS), call it again (HIT), wait 5 minutes (MISS).
 
 ---
 

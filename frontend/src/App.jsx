@@ -1,10 +1,13 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function App() {
+  const { isLoading: authLoading, isAuthenticated, loginWithRedirect, logout, getAccessTokenSilently, user } =
+    useAuth0();
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("score");
 
@@ -14,10 +17,24 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+
     let ignore = false;
     setLoading(true);
-    fetch("/api/weather")
+    getAccessTokenSilently()
+      .then((token) =>
+        fetch("/api/weather", {
+          headers: { Authorization: "Bearer " + token },
+        })
+      )
       .then((res) => {
+        if (res.status === 401) {
+          throw new Error("Login expired. Log in again.");
+        }
         if (!res.ok) {
           return res.json().then((body) => {
             throw new Error(body.error || "Could not load weather");
@@ -32,7 +49,12 @@ export default function App() {
       })
       .catch((err) => {
         if (!ignore) {
-          setError(err.message + ". Start the Spring Boot app on port 8080.");
+          const msg = err.message || "Could not load weather";
+          const springDown =
+            msg.includes("Failed to fetch") ||
+            msg.includes("NetworkError") ||
+            msg.includes("Load failed");
+          setError(springDown ? msg + " Start the Spring Boot app on port 8080." : msg);
         }
       })
       .finally(() => {
@@ -41,7 +63,7 @@ export default function App() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [isAuthenticated, getAccessTokenSilently]);
 
   const cities = useMemo(() => {
     const list = data?.cities ? [...data.cities] : [];
@@ -64,13 +86,48 @@ export default function App() {
 
   const maxTemp = Math.max(1, ...cities.map((c) => Math.abs(c.temperature || 0)));
 
+  if (authLoading) {
+    return (
+      <div className="page">
+        <p>Checking login...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="page">
+        <header className="top">
+          <h1>Weather dashboard</h1>
+          <button type="button" className="theme-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </button>
+        </header>
+        <p>Log in to see comfort scores.</p>
+        <button type="button" className="theme-btn" onClick={() => loginWithRedirect()}>
+          Log in
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <header className="top">
         <h1>Weather dashboard</h1>
-        <button type="button" className="theme-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? "Light mode" : "Dark mode"}
-        </button>
+        <div className="header-actions">
+          <span className="muted">{user?.email}</span>
+          <button type="button" className="theme-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </button>
+          <button
+            type="button"
+            className="theme-btn"
+            onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+          >
+            Log out
+          </button>
+        </div>
       </header>
 
       {loading && <p>Loading weather...</p>}
