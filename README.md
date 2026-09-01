@@ -25,23 +25,70 @@ Open http://localhost:5173. Keep Spring Boot running on port 8080.
 
 The dashboard is hidden until Auth0 login. The API also requires a JWT.
 
-### 1. Auth0 website (do this first)
+Login, **email verification**, **email MFA**, and the whitelist all happen in the [Auth0 dashboard](https://manage.auth0.com/). The Spring Boot `require-mfa` flag was removed: access tokens do not carry MFA, so the API cannot prove “email MFA” that way.
+
+Do **not** use Google login or Authenticator QR. Use **email + password**, then Auth0 email.
+
+### Step 1 — Authentication (login / logout)
 
 1. Create an account at [auth0.com](https://auth0.com/).
-2. **Applications → Create Application** → Single Page Application.
-3. Settings:
-   - Allowed Callback URLs: `http://localhost:5173`
-   - Allowed Logout URLs: `http://localhost:5173`
-   - Allowed Web Origins: `http://localhost:5173`
-4. Copy **Domain** and **Client ID**.
+2. **Applications → Create Application** → Single Page Application (`Weather Analytics`).
+3. Settings — all three URLs: `http://localhost:5173`
+   - Allowed Callback URLs
+   - Allowed Logout URLs
+   - Allowed Web Origins
+4. Copy **Domain** and **Client ID** into `frontend/.env`.
 5. **Applications → APIs → Create API**
-   - Identifier (audience): `https://weather-api` (any URI you choose; use the same everywhere)
-6. **User Management → Users → Create User**
-   - Use the test email and password from the assignment PDF.
-   - Also create your own email so you can log in.
-7. **Authentication → Database** → open your Username-Password connection → turn **on** Disable Sign Ups.
-8. **Authentication → Multifactor** → turn on MFA → **Email**.
-9. **Actions → Login** → new Action. Deny emails that are not on your list (include the assignment test email and yours). Deploy, then add the Action to the Login flow.
+   - Identifier: `https://weather-api` (same as `VITE_AUTH0_AUDIENCE` and `AUTH0_AUDIENCE`)
+6. On that API: **Machine to Machine Applications** (or API → Applications) → allow your SPA.
+7. Open `http://localhost:5173` → **Log in** / **Log out**. No scores until login.
+
+### Step 2 — Email verification + MFA by email
+
+These are **two Auth0 features**. The assignment wording mixes them. The app must not replace them with a backend `require-mfa` check.
+
+**A. Verify the email** ([Auth0: Verify Emails](https://auth0.com/docs/manage-users/user-accounts/verify-emails))
+
+Auth0 marks `email_verified` when the user proves they can open that inbox (link or one-time password). Users you create in the dashboard start as **UNVERIFIED**.
+
+1. **Authentication → Database** → your Username-Password connection.
+2. Keep **Email** as the identifier.
+3. Optional (OTP instead of a magic link): **Attributes → Email → One-Time Password (OTP)** as in the Auth0 docs.
+4. **User Management → Users** → open **your Gmail user** → **Send Verification Email** (or the email OTP prompt on login).
+5. Open **your** Gmail, click the Auth0 link or enter the code. The badge should become **Verified**.
+6. Optional: **Authentication → Authentication Profile** / Marketplace “Require Email Verification” so unverified users cannot finish login.
+
+You cannot complete email verification for `careers@fidenz.com` unless you can open that mailbox. For that account, in the user profile set **Email Verified** (admin), or leave it for Fidenz to verify.
+
+**B. MFA via email (second factor after the password)**
+
+Auth0 **will not** let Email be the only MFA factor. If you turn **One-time Password** off while Email is on, you get: *Email, Recovery Code, and/or WebAuthn can't be enabled as the only factors.* That is an Auth0 rule, not a bug in this app. See [Configure Email Notifications for MFA](https://auth0.com/docs/secure/multi-factor-authentication/multi-factor-authentication-factors/configure-email-notifications-for-mfa).
+
+Keep **One-time Password** **On**. Use Email as the factor the user is asked for.
+
+1. **Security → Multi-factor Auth**.
+2. **One-time Password** = **On** (leave it; Auth0 requires a primary factor).
+3. **Email** = **On**.
+4. **Require Multi-factor Auth** → **Always**.
+5. **Additional Settings** → turn **on** **Customize MFA Factors using Actions**.
+6. Your Gmail user must be **Verified**. Unverified users do not get an email MFA code.
+7. **User Management → Users** → your user → **Multi-factor Authentication** → remove any authenticator enrollment (from the old QR).
+8. Paste the latest `auth0/login-action.js` (whitelist + `challengeWith('email')`) into the Login Action → **Deploy**.
+9. Incognito → log in with **email + password** (not Google).
+
+The prompt should say a code was **emailed**. If you still see “one-time password application”, click **Try another method** → **Email**.
+
+### Step 3 — Restrict signups and whitelist
+
+1. **Authentication → Database** → **Disable Sign Ups** = **On**.
+2. **User Management → Users → Create User** (Username-Password / Database), two accounts:
+   - `careers@fidenz.com`
+   - `buddhinikaluwila1999@gmail.com`
+   - Set the assignment passwords in Auth0. Do not put passwords in git.
+3. **Actions → Library → Build Custom** → trigger **Login**. Paste `auth0/login-action.js` (allow list + email MFA challenge). **Deploy**.
+4. **Actions → Flows → Login** → add the Action to the flow → **Apply**.
+
+Only those two emails can finish login. Random signups are off because Disable Sign Ups is on.
 
 ### 2. Frontend env
 
