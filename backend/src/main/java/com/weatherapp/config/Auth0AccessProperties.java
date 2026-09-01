@@ -6,7 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class Auth0AccessProperties {
 
     private String allowedEmails = "";
-    private boolean requireMfa = true;
 
     public String getAllowedEmails() {
         return allowedEmails;
@@ -14,13 +13,5 @@ public class Auth0AccessProperties {
 
     public void setAllowedEmails(String allowedEmails) {
         this.allowedEmails = allowedEmails == null ? "" : allowedEmails;
-    }
-
-    public boolean isRequireMfa() {
-        return requireMfa;
-    }
-
-    public void setRequireMfa(boolean requireMfa) {
-        this.requireMfa = requireMfa;
     }
 }

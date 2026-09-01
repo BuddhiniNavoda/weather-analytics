@@ -48,13 +48,6 @@ public class AllowedAccessFilter extends OncePerRequestFilter {
             writeForbidden(response, "This email is not on the allow list.");
             return;
         }
-        if (allowedAccessService.requireMfa() && !allowedAccessService.mfaCompleted(jwt)) {
-            writeForbidden(
-                    response,
-                    "MFA is required. In Auth0, turn on Email MFA and add auth0/login-action.js to the Login flow."
-            );
-            return;
-        }
 
         filterChain.doFilter(request, response);
     }

@@ -4,7 +4,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,21 +50,5 @@ public class AllowedAccessService {
             return true;
         }
         return allowed.contains(email.trim().toLowerCase(Locale.ROOT));
-    }
-
-    public boolean mfaCompleted(Jwt jwt) {
-        List<String> amr = jwt.getClaimAsStringList("amr");
-        if (amr != null && amr.stream().anyMatch(v -> "mfa".equalsIgnoreCase(v))) {
-            return true;
-        }
-        if (Boolean.TRUE.equals(jwt.getClaim("https://weather-api/mfa"))) {
-            return true;
-        }
-        // Access tokens usually omit amr. Auth0 already required MFA at login.
-        return amr == null && jwt.getClaim("https://weather-api/mfa") == null;
-    }
-
-    public boolean requireMfa() {
-        return properties.isRequireMfa();
     }
 }
