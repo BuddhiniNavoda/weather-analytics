@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Comfort Score Interview Q&amp;A</title>
+  <style>
+    @page { margin: 16mm; }
+    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; max-width: 820px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 20pt; margin: 0 0 8px; }
+    .sub { color: #444; margin-bottom: 16px; }
+    h2 { font-size: 13pt; margin: 20px 0 8px; }
+    .q { color: #14366e; font-weight: 700; margin: 14px 0 4px; }
+    .a { margin: 0 0 10px; }
+    .box { background: #f4f6f8; padding: 10px 12px; }
+    code { font-size: 10pt; }
+  </style>
+</head>
+<body>
+  <h1>Interview Q&amp;A — Comfort Index</h1>
+  <p class="sub">Practice for the part I coded: live weather on the backend, then Comfort Index and rank. Use simple answers. If they ask about cache, login, or UI, I say I have not built that yet.</p>
+
+  <h2>Say this in 30 seconds</h2>
+  <p class="box">I built a Spring Boot API. It reads city IDs from a JSON file and gets live weather from OpenWeatherMap on the server. Then the backend calculates a Comfort Index from 0 to 100 using temperature, humidity, and wind. Cities are sorted by that score. Rank 1 is the most comfortable. The browser does not calculate the score.</p>
+
+  <h2>Quick facts</h2>
+  <ul>
+    <li>GET http://localhost:8080/api/weather</li>
+    <li>Score is made in ComfortCalculator on the backend</li>
+    <li>tempScore = 100 − |temperature − 22| × 5</li>
+    <li>humidityScore = 100 − |humidity − 50| × 1.5</li>
+    <li>windScore = 100 − windSpeed × 10</li>
+    <li>score = 0.50×temp + 0.30×humidity + 0.20×wind</li>
+    <li>Then sort high to low and set rank</li>
+  </ul>
+
+  <p class="q">Q1. What did you add in this part?</p>
+  <p class="a">A. After live weather, I added a Comfort Index on the server. Each city gets a score from 0 to 100 and a rank. Rank 1 is the best. The formula is in ComfortCalculator. WeatherService calls it, then sorts the list.</p>
+
+  <p class="q">Q2. What is the Comfort Index?</p>
+  <p class="a">A. It is a number from 0 to 100. 100 means very nice outdoors. 0 means very bad. It is my own rule to compare cities. It is not a medical test.</p>
+
+  <p class="q">Q3. Why must the backend calculate the score?</p>
+  <p class="a">A. If the frontend calculates it, anyone can change the formula in the browser. Then ranks would not be trusted. One formula on the server means every user sees the same rank. The assignment also says the backend must compute the score.</p>
+
+  <p class="q">Q4. Walk me through one request.</p>
+  <p class="a">A. WeatherController gets GET /api/weather. WeatherService reads city IDs from cities.json. It calls OpenWeatherMap for each city. ComfortCalculator makes the score from temperature, humidity, and wind. Then we sort by score, highest first, and set rank 1, 2, 3. The JSON includes score and rank.</p>
+
+  <p class="q">Q5. Which weather numbers do you use?</p>
+  <p class="a">A. Temperature in Celsius, humidity in percent, wind speed in metres per second. All from OpenWeatherMap. I do not use Temp or Status from cities.json. That file is only for CityCode.</p>
+
+  <p class="q">Q6. Why not add temperature + humidity + wind as they are?</p>
+  <p class="a">A. The units are different. Humidity is around 70. Wind is around 5. Humidity would always win. So I first turn each one into a 0–100 score, then mix them with weights.</p>
+
+  <p class="q">Q7. Explain the temperature formula.</p>
+  <p class="a">A. tempScore = 100 − |temperature − 22| × 5. I treat 22°C as nice weather. The bars mean hot and cold both lose points. × 5 means each 1°C away from 22 loses 5 marks. If I only subtract the gap, 30°C would still look like about 91, which is too good. Then I keep the result between 0 and 100.</p>
+
+  <p class="q">Q8. Why 22°C?</p>
+  <p class="a">A. It is my default for mild outdoor weather so I can compare all cities on one scale. It is a choice. Someone in Colombo may feel fine at 30°C. I can say that in the interview.</p>
+
+  <p class="q">Q9. Explain the humidity formula.</p>
+  <p class="a">A. humidityScore = 100 − |humidity − 50| × 1.5. 50% is my ideal. Too dry and too sticky both lose points. I use 1.5, not 5, because humidity already goes from 0 to 100. If I used × 5, 74% humidity would hit 0 too fast.</p>
+
+  <p class="q">Q10. Explain the wind formula.</p>
+  <p class="a">A. windScore = 100 − windSpeed × 10. More wind means a lower score. Calm wind is 100. × 10 is needed because wind is a small number like 1 to 6. Without × 10, wind would almost not change the rank. 10 m/s wind would be score 0.</p>
+
+  <p class="q">Q11. Why no absolute value on wind?</p>
+  <p class="a">A. In version 1 I say more wind is worse. I do not say 2 m/s is ideal and 0 m/s is also bad. That keeps it simple. Later I can say a little wind is nice when it is hot.</p>
+
+  <p class="q">Q12. Why weights 0.50, 0.30, 0.20?</p>
+  <p class="a">A. They add to 1. Temperature is 50% because heat and cold are what people feel first. Humidity is 30%. Wind is 20% as a small extra. I can change these numbers live if they ask.</p>
+
+  <p class="q">Q13. Show the full formula.</p>
+  <p class="a">A. score = 0.50 × tempScore + 0.30 × humidityScore + 0.20 × windScore. Then clamp 0 to 100 and round to 2 decimals.</p>
+
+  <p class="q">Q14. Calculate Colombo quickly. 30.58°C, 74%, 5.84 m/s.</p>
+  <p class="a">A. Temp gap = 8.58. tempScore = 100 − 8.58×5 ≈ 57. Humidity gap = 24. humidityScore = 100 − 24×1.5 = 64. windScore = 100 − 5.84×10 ≈ 42. Final ≈ 0.5×57 + 0.3×64 + 0.2×42 ≈ 56. So Colombo is mid, not rank 1. It is hot and humid.</p>
+
+  <p class="q">Q15. Why might Boston rank higher than Colombo?</p>
+  <p class="a">A. Boston is closer to 22°C and the wind is weaker. Colombo is about 30°C and more humid. With my formula, milder and calmer cities get a higher score.</p>
+
+  <p class="q">Q16. Where is this in the code?</p>
+  <p class="a">A. ComfortCalculator has the math. WeatherService gets weather, calls calculate, sorts by score, then setRank. CityWeather has score and rank fields. The controller only returns the JSON.</p>
+
+  <p class="q">Q17. What is clamp?</p>
+  <p class="a">A. If the number is below 0 I use 0. If it is above 100 I use 100. So a very hot city cannot get a negative score.</p>
+
+  <p class="q">Q18. What if temperature is missing?</p>
+  <p class="a">A. In my code, null temperature or humidity gives that sub-score 0. Null wind I treat as 0 m/s, so wind score is 100. Normally OpenWeatherMap sends all three.</p>
+
+  <p class="q">Q19. How do you rank?</p>
+  <p class="a">A. After every city has a score, I sort highest score first. First city gets rank 1, next rank 2. The API list is already in rank order.</p>
+
+  <p class="q">Q20. If two cities have the same score?</p>
+  <p class="a">A. Java sort keeps a stable order, so they keep their old order. I did not add a special tie-break. I can say I would use city name next if needed.</p>
+
+  <p class="q">Q21. Why can temperature look the same when I refresh?</p>
+  <p class="a">A. OpenWeatherMap current weather does not change every second. fetchedAt should change. That means I called the API again. The weather numbers can stay the same for about 10 minutes.</p>
+
+  <p class="q">Q22. If they ask you to add one more parameter live, what do you do?</p>
+  <p class="a">A. I already have clouds. I can add cloudScore = 100 − clouds. Then change weights to add to 1, for example 0.40, 0.25, 0.20, 0.15. I change ComfortCalculator, save, refresh, and show if ranks move. I talk while I type.</p>
+
+  <p class="q">Q23. What is a trade-off of your formula?</p>
+  <p class="a">A. It is simple, not perfect. 22°C is my choice. Wind always lowers the score, even a small breeze. I made it easy to explain and easy to change.</p>
+
+  <p class="q">Q24. Why Spring Boot layers?</p>
+  <p class="a">A. Controller is HTTP. Service is the flow. ComfortCalculator is only the formula. Repository talks to the file and OpenWeatherMap. DTO is the JSON. If they ask to change the formula, I only edit ComfortCalculator.</p>
+
+  <p class="q">Q25. What have you not built yet?</p>
+  <p class="a">A. No 5-minute cache. No Auth0 login. No frontend dashboard. I would do cache next, then a simple UI, then Auth0.</p>
+
+  <p class="q">Q26. How do you hide the API key?</p>
+  <p class="a">A. The key is in application-local.properties. That file is gitignored. The frontend never sees the key.</p>
+
+  <h2>If you get stuck</h2>
+  <p>Say I have not coded that part yet, then explain the plan. Do not guess about cache or Auth0 as if they are in the project. For the formula, point to ComfortCalculator and the README.</p>
+</body>
+</html>

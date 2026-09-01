@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weather App Interview Q&amp;A</title>
+  <style>
+    @page { margin: 18mm 16mm; }
+    body {
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      color: #1a1a1a;
+      font-size: 11pt;
+      line-height: 1.45;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 { font-size: 22pt; margin: 0 0 8px; }
+    .sub { color: #444; margin-bottom: 20px; }
+    h2 { font-size: 13pt; margin: 22px 0 8px; }
+    .facts li { margin: 4px 0; }
+    .q { color: #14366e; font-weight: 700; margin: 16px 0 4px; }
+    .a { margin: 0 0 12px; }
+    .intro { background: #f4f6f8; padding: 12px 14px; }
+  </style>
+</head>
+<body>
+  <h1>Interview Q&amp;A</h1>
+  <p class="sub">Weather backend I built: Spring Boot, cities.json, and OpenWeatherMap. Answer from real code. If they ask about Comfort Index, cache, UI, or Auth0, say that is next, then explain the plan.</p>
+
+  <h2>Quick facts to remember</h2>
+  <ul class="facts">
+    <li>Endpoint: GET http://localhost:8080/api/weather</li>
+    <li>City IDs come from cities.json field CityCode</li>
+    <li>Weather URL uses id, appid, and units=metric</li>
+    <li>API key is on the server only</li>
+    <li>Built now: read cities + live weather JSON</li>
+    <li>Not built yet: Comfort Index, rank, 5-min cache, Auth0, frontend</li>
+  </ul>
+
+  <p class="q">Q1. What did you build?</p>
+  <p class="a">A. I built a Spring Boot backend for a weather app. It reads city IDs from cities.json, calls OpenWeatherMap from the server, and returns live weather as JSON on GET /api/weather. I have not added Comfort Index, ranking, caching, Auth0, or the frontend yet.</p>
+
+  <p class="q">Q2. How do you run it and how do you test it?</p>
+  <p class="a">A. I put my OpenWeatherMap key in application-local.properties so it is not in git. I run the backend with mvn spring-boot:run, then open http://localhost:8080/api/weather. If it works I see about 8 cities with name, country, description, temperature, humidity, wind speed, and clouds.</p>
+
+  <p class="q">Q3. What is in cities.json? Do you use temperature from that file?</p>
+  <p class="a">A. cities.json has a List of cities. Each city has CityCode, CityName, Temp, and Status. I only use CityCode. Temp and Status in the file are old sample values. Live temperature comes from OpenWeatherMap.</p>
+
+  <p class="q">Q4. How does the backend read city IDs?</p>
+  <p class="a">A. CityFileReader reads cities.json with Jackson. It maps the JSON List to CitiesFile and CityItem. Then it collects every CityCode into a list of strings. It first looks for cities.json on disk. If that file is missing, it reads it from the classpath.</p>
+
+  <p class="q">Q5. How does the backend call OpenWeatherMap?</p>
+  <p class="a">A. OpenWeatherMapClient uses Spring RestClient. For each city ID it calls https://api.openweathermap.org/data/2.5/weather with id, appid, and units=metric. units=metric means temperature is in Celsius. The API key stays on the server.</p>
+
+  <p class="q">Q6. Walk me through one request to GET /api/weather.</p>
+  <p class="a">A. WeatherController receives the request and calls WeatherService. WeatherService asks CityFileReader for city IDs. Then it loops each ID and calls OpenWeatherMapClient. It maps the OpenWeather JSON into CityWeather and returns WeatherListResponse with count and cities. If something fails, the controller returns HTTP 500 with an error message.</p>
+
+  <p class="q">Q7. Why is the temperature different from cities.json?</p>
+  <p class="a">A. Because the JSON file is not my weather source. It only gives city IDs. OpenWeatherMap returns current weather, so numbers will not match the sample Temp in the file. That is how I know the API call is working.</p>
+
+  <p class="q">Q8. If I refresh the page, why do values stay the same?</p>
+  <p class="a">A. Current weather does not change every second. OpenWeatherMap keeps the same reading for several minutes, often around 10 minutes on the free plan. Refreshing quickly still gets the same current weather. I did not add caching yet, so each refresh still calls OpenWeatherMap. They just send the same snapshot.</p>
+
+  <p class="q">Q9. Why did you put the API key on the backend, not in the browser?</p>
+  <p class="a">A. If I put the key in the frontend, anyone can copy it from the browser and use my quota. The key is in application-local.properties, which is gitignored. application.properties loads that file and also supports OPENWEATHER_API_KEY as an environment variable.</p>
+
+  <p class="q">Q10. Explain your package structure.</p>
+  <p class="a">A. controller: WeatherController, HTTP only. service: WeatherService, business flow. dto: CityWeather, WeatherListResponse, OpenWeatherResponse. repository: CityFileReader and OpenWeatherMapClient, data from file and from the weather API. entity: CitiesFile and CityItem, the shape of cities.json. I do not use a database yet, so entity and repository are not JPA.</p>
+
+  <p class="q">Q11. What is a DTO in your project?</p>
+  <p class="a">A. A DTO is a data object for JSON in and out. OpenWeatherResponse matches OpenWeatherMap JSON. CityWeather and WeatherListResponse are what my API returns to the client. I do not send the raw OpenWeatherMap object to the frontend.</p>
+
+  <p class="q">Q12. What is constructor injection? Why did you use it?</p>
+  <p class="a">A. Spring creates WeatherService and passes CityFileReader and OpenWeatherMapClient into the constructor. The controller gets WeatherService the same way. I do not use new WeatherService() myself. This makes dependencies clear and easier to test later.</p>
+
+  <p class="q">Q13. What annotations did you use?</p>
+  <p class="a">A. @SpringBootApplication on the main class. @RestController and @GetMapping on the controller. @Service on WeatherService. @Repository on the file reader and the OpenWeather client. @Value to read settings from application.properties. @JsonProperty because cities.json uses CityCode and List with capital letters.</p>
+
+  <p class="q">Q14. Why RestClient instead of WebClient or RestTemplate?</p>
+  <p class="a">A. RestClient is the current simple blocking HTTP client in Spring. My app waits for each city one by one, so blocking is fine for this size. RestTemplate is older. WebClient is better if I need non-blocking or many parallel calls.</p>
+
+  <p class="q">Q15. You fetch cities one by one. What is the trade-off?</p>
+  <p class="a">A. A simple for-loop is easy to understand and debug. That is why I started this way. The downside is it is slower, because I wait for city 1 before city 2. Later I could call OpenWeatherMap in parallel, but I must stay within the free rate limit.</p>
+
+  <p class="q">Q16. What happens if the API key is missing or invalid?</p>
+  <p class="a">A. If the key is empty, OpenWeatherMapClient throws an error telling me to add the key. If OpenWeatherMap rejects the key, I catch RestClientResponseException and return their message. A new key can take some time to activate, so 401 Invalid API key can happen at first.</p>
+
+  <p class="q">Q17. What is the difference between entity and DTO here?</p>
+  <p class="a">A. Entity is the cities.json model: CityCode, CityName. DTO is API JSON: OpenWeatherResponse coming in, CityWeather going out. I keep them separate so a change in OpenWeatherMap JSON does not force me to change cities.json mapping.</p>
+
+  <p class="q">Q18. Did you implement Comfort Index?</p>
+  <p class="a">A. Not yet. Next I will calculate a score from 0 to 100 on the server only, not in the frontend. I will use temperature, humidity, and wind. Example: Comfort = 0.5 * tempScore + 0.3 * humidityScore + 0.2 * windScore. Then I will sort highest score first and add rank 1, 2, 3.</p>
+
+  <p class="q">Q19. Why should Comfort Index be on the server?</p>
+  <p class="a">A. If the frontend calculates it, anyone can change the formula in the browser. The assignment also says the backend must calculate the score. The UI should only display score and rank.</p>
+
+  <p class="q">Q20. How would you score temperature, humidity, and wind?</p>
+  <p class="a">A. Temperature: 22C is comfortable. Score drops if it is much hotter or colder. Humidity: around 40 to 60 percent is comfortable. Wind: light wind is better than strong wind. I weight temperature highest because heat and cold affect comfort the most.</p>
+
+  <p class="q">Q21. If they ask you to add one more parameter live, what will you do?</p>
+  <p class="a">A. I will add something already in the API, like clouds or pressure. I will give it a 0 to 100 sub-score, reduce other weights so they still add to 1.0, recalculate, sort, and show that ranks can change. I will talk while I type.</p>
+
+  <p class="q">Q22. What is the 5-minute cache you still need?</p>
+  <p class="a">A. I will store the processed weather list in memory with the time I saved it. If the next request is within 5 minutes, I return the cache. That is a HIT. If it is older, I call OpenWeatherMap again. That is a MISS. I will also add a debug endpoint so I can show HIT or MISS. In-memory cache is simple, but it is lost when the server restarts. Redis would survive restart.</p>
+
+  <p class="q">Q23. What about Auth0?</p>
+  <p class="a">A. I have not added Auth0 yet. The plan is login and logout on the frontend, protect the dashboard, and check the JWT on the backend before returning weather. Public signup should be off, MFA by email on, and only allowed emails can log in.</p>
+
+  <p class="q">Q24. Why Spring Boot, not only Node?</p>
+  <p class="a">A. I first tried a small Express server, then I moved to Spring Boot because I already use controller, service, dto, repository, and entity in other Java projects. The weather call still happens on the server in both cases.</p>
+
+  <p class="q">Q25. What would you improve next?</p>
+  <p class="a">A. Comfort Index and ranking first, then 5-minute cache, then a simple UI, then Auth0. I would also handle one failed city without failing the whole list, and I would not log the API key.</p>
+
+  <p class="q">Q26. How do you keep secrets out of GitHub?</p>
+  <p class="a">A. application-local.properties and .env are gitignored. I commit application-local.properties.example with paste_your_key_here. I never put the real key in application.properties on git.</p>
+
+  <h2>30-second intro (say this out loud)</h2>
+  <p class="intro">I built a Spring Boot weather API. The backend reads city IDs from a JSON file and calls OpenWeatherMap on the server so the API key is not exposed. GET /api/weather returns live temperature, description, humidity, wind, and clouds. I started with this slice first. Next I will add a comfort score and ranking on the server, then a 5-minute cache, a simple UI, and Auth0.</p>
+
+  <h2>If you get stuck</h2>
+  <p>It is better to say I have not coded that part yet, then explain the plan, than to guess about code that is not in the project. They may ask me to change the formula live, so I keep WeatherService small and easy to edit.</p>
+</body>
+</html>

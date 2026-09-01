@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Frontend UI Interview Q&amp;A</title>
+  <style>
+    @page { margin: 16mm; }
+    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; max-width: 820px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 20pt; margin: 0 0 8px; }
+    .sub { color: #444; margin-bottom: 16px; }
+    h2 { font-size: 13pt; margin: 20px 0 8px; }
+    .q { color: #14366e; font-weight: 700; margin: 14px 0 4px; }
+    .a { margin: 0 0 10px; }
+    .box { background: #f4f6f8; padding: 10px 12px; }
+  </style>
+</head>
+<body>
+  <h1>Interview Q&amp;A — Responsive UI</h1>
+  <p class="sub">This part is the React dashboard: mobile and desktop layout, dark mode, filter, sort, temperature bar chart, and Comfort Index unit tests. The frontend does not calculate the comfort score.</p>
+
+  <h2>Say this in 30 seconds</h2>
+  <p class="box">I built a React dashboard with Vite. It calls GET /api/weather through a Vite proxy to Spring Boot on port 8080. The UI shows rank, city, weather, temperature, and the backend score. On a wide screen I use a table. On a phone I use cards. CSS media query is 768px. Dark mode uses a data-theme attribute and localStorage. Filter and sort run in the browser with useMemo. I removed sort by rank because it is the same order as sort by score. The chart is one bar per city for current temperature. I also wrote JUnit tests for ComfortCalculator.</p>
+
+  <h2>Quick facts</h2>
+  <ul>
+    <li>Frontend: http://localhost:5173</li>
+    <li>Backend: http://localhost:8080</li>
+    <li>fetch("/api/weather") — Vite proxy to Spring Boot</li>
+    <li>Score and rank come from the backend only</li>
+    <li>Desktop table / mobile cards at 768px</li>
+    <li>Dark mode: data-theme + localStorage</li>
+    <li>Sort: score, temperature, name</li>
+    <li>Chart: bar height from each city temperature</li>
+    <li>Tests: mvn test — ComfortCalculatorTest</li>
+  </ul>
+
+  <h2>Product questions</h2>
+
+  <p class="q">Q1. What did you build in this step?</p>
+  <p class="a">A. A responsive weather dashboard. It lists cities from my API. It works on phone and desktop. Bonus: dark mode, filter, sort, a temperature bar chart, and unit tests for the comfort formula.</p>
+
+  <p class="q">Q2. Does the frontend calculate Comfort Index?</p>
+  <p class="a">A. No. The backend already sends score and rank. React only shows them. If I calculated the score in React, someone could change it in the browser.</p>
+
+  <p class="q">Q3. How is it responsive?</p>
+  <p class="a">A. I use a CSS media query. Below 768px I show cards. At 768px and above I show a table. The page also uses a max width and flexible toolbar so inputs wrap on a small screen.</p>
+
+  <p class="q">Q4. Why remove sort by rank?</p>
+  <p class="a">A. Rank is made from score on the server. Highest score is rank 1. Sorting by rank and by score gave the same list. I kept sort by score.</p>
+
+  <p class="q">Q5. How does filter work?</p>
+  <p class="a">A. The user types a city or country. I keep the original API list. I filter a copy with includes() on name and country. I do not call the backend again.</p>
+
+  <p class="q">Q6. How does the temperature chart work?</p>
+  <p class="a">A. Each city is one bar. Bar height = abs(temperature) / maxAbsTemperature * 140px. I use absolute value so a negative temperature still has a bar. The city name is under the bar. Filter and sort also change the chart.</p>
+
+  <h2>Technical questions</h2>
+
+  <p class="q">Q7. What is Vite and why a proxy?</p>
+  <p class="a">A. Vite is the dev server for React. The UI runs on 5173. The API runs on 8080. The browser blocks a page on 5173 from calling 8080 (CORS) unless the server allows it. I set vite.config.js proxy: /api goes to http://localhost:8080. So fetch("/api/weather") stays same-origin on 5173, and Vite forwards it. I also added CorsConfig on Spring Boot for 5173 as a backup.</p>
+
+  <p class="q">Q8. What is CORS?</p>
+  <p class="a">A. Cross-Origin Resource Sharing. The browser treats different port as a different origin. localhost:5173 and localhost:8080 are different origins. Without CORS or a proxy, fetch fails.</p>
+
+  <p class="q">Q9. Explain useState and useEffect in your App.</p>
+  <p class="a">A. useState holds theme, data, error, loading, query, and sortBy. One useEffect writes theme to document.documentElement and localStorage. Another useEffect runs once ([]), fetches weather, then sets data or error. I use an ignore flag in cleanup so a slow response does not update state after unmount.</p>
+
+  <p class="q">Q10. Why useMemo for the city list?</p>
+  <p class="a">A. Filter and sort run only when data, query, or sortBy change. I copy the array first ([...data.cities]) so I do not mutate the API payload. Mutating the original array would break React state.</p>
+
+  <p class="q">Q11. How does dark mode work technically?</p>
+  <p class="a">A. I set data-theme="dark" or "light" on the html element. CSS variables in :root and [data-theme="dark"] change colors. localStorage remembers the choice after refresh. That is CSS custom properties, not a second website.</p>
+
+  <p class="q">Q12. What is a media query?</p>
+  <p class="a">A. CSS that applies only at a screen size. I hide the table on small screens (.desktop-only { display: none }) and show it from 768px. Cards are the opposite.</p>
+
+  <p class="q">Q13. Why fetch, not Axios?</p>
+  <p class="a">A. fetch is built into the browser. One GET is enough. I check res.ok and read JSON error from the backend.</p>
+
+  <p class="q">Q14. What happens if the backend is down?</p>
+  <p class="a">A. fetch fails or Vite proxy says connection refused. I show an error: start Spring Boot on port 8080.</p>
+
+  <p class="q">Q15. Why Cache-Control no-store on the API?</p>
+  <p class="a">A. So the browser does not keep an old /api/weather JSON. Server cache is our 5-minute Map. Browser cache is different.</p>
+
+  <p class="q">Q16. Could you sort on the backend instead?</p>
+  <p class="a">A. Yes, with query params. I sort on the frontend because the assignment bonus is frontend sorting, and the list is only 8 cities. The default rank order still comes from the server.</p>
+
+  <p class="q">Q17. How do you test Comfort Index?</p>
+  <p class="a">A. JUnit 5 in ComfortCalculatorTest. I call calculate() with known numbers. Ideal 22°C, 50% humidity, 0 wind should be 100. Colombo-like numbers should be mid, not 100. Null temperature: temp part is 0, so score is 0.5*0 + 0.3*100 + 0.2*100 = 50. Extreme weather clamps to 0. I run mvn test. These tests do not start the web server.</p>
+
+  <p class="q">Q18. What is a unit test vs an API test?</p>
+  <p class="a">A. A unit test checks one class, ComfortCalculator, with no OpenWeatherMap. An API test would call GET /api/weather. I unit-tested the formula because the assignment asked for tests on the Comfort Index function.</p>
+
+  <p class="q">Q19. Why is ComfortCalculator a @Component?</p>
+  <p class="a">A. Spring can inject it into WeatherService. In the test I do new ComfortCalculator() myself. I do not need the full Spring context for these tests.</p>
+
+  <p class="q">Q20. What is the SPA here?</p>
+  <p class="a">A. Single Page Application. One HTML page, React updates the DOM. No login page yet. Auth0 would be a later step.</p>
+
+  <p class="q">Q21. How would you improve the chart?</p>
+  <p class="a">A. I could use a library like Recharts, add axes, or show history if the backend stored old temperatures. Right now I only have current weather, so one bar per city is honest.</p>
+
+  <p class="q">Q22. What have you not built yet?</p>
+  <p class="a">A. Auth0 login, MFA, and protecting the dashboard. The UI is public if someone opens 5173.</p>
+
+  <h2>If you get stuck</h2>
+  <p>Say: React displays backend JSON. Score is not calculated in the browser. Table vs cards is CSS. Proxy avoids CORS in development. Tests check ComfortCalculator only. Do not say the frontend computes rank.</p>
+</body>
+</html>

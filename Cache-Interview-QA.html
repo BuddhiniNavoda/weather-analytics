@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cache Interview Q&amp;A</title>
+  <style>
+    @page { margin: 16mm; }
+    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; max-width: 820px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 20pt; margin: 0 0 8px; }
+    .sub { color: #444; margin-bottom: 16px; }
+    h2 { font-size: 13pt; margin: 20px 0 8px; }
+    .q { color: #14366e; font-weight: 700; margin: 14px 0 4px; }
+    .a { margin: 0 0 10px; }
+    .box { background: #f4f6f8; padding: 10px 12px; }
+  </style>
+</head>
+<body>
+  <h1>Interview Q&amp;A — Server cache</h1>
+  <p class="sub">Practice for the cache I coded: 5 minutes on the backend, raw weather, processed list, HIT and MISS. Simple answers. Cache is not the same as cash.</p>
+
+  <h2>Say this in 30 seconds</h2>
+  <p class="box">I cache weather on the server for 5 minutes. I save two things: raw OpenWeatherMap JSON per city, and the full ranked list with scores. If the list is still fresh, I return it and do not call OpenWeatherMap. That is a HIT. If it is empty or older than 5 minutes, that is a MISS. I rebuild, save, and return. GET /api/cache/status shows HIT or MISS. The cache is in memory, so it is gone when I restart the app.</p>
+
+  <h2>Quick facts</h2>
+  <ul>
+    <li>GET http://localhost:8080/api/weather</li>
+    <li>GET http://localhost:8080/api/cache/status</li>
+    <li>TTL = 300 seconds (5 minutes)</li>
+    <li>WeatherCache is a Map in memory</li>
+    <li>Processed cache = ranked list with score</li>
+    <li>Raw cache = OpenWeatherMap JSON per city ID</li>
+    <li>HIT = data younger than 5 minutes</li>
+    <li>MISS = no data, or older than 5 minutes</li>
+  </ul>
+
+  <p class="q">Q1. What is a cache in your project?</p>
+  <p class="a">A. It is saved weather on the server. I keep it for 5 minutes so I do not call OpenWeatherMap on every refresh.</p>
+
+  <p class="q">Q2. Why do you cache?</p>
+  <p class="a">A. OpenWeatherMap has limits. Eight cities on every click is many calls. Cache is faster. Weather does not change every second. The assignment also asks for 5 minutes and a HIT/MISS debug URL.</p>
+
+  <p class="q">Q3. Is this cache in the browser?</p>
+  <p class="a">A. No. It is on the Spring Boot server. The browser only asks my API. I also send Cache-Control no-store so the browser does not keep an old JSON page.</p>
+
+  <p class="q">Q4. What is raw cache vs processed cache?</p>
+  <p class="a">A. Raw is the OpenWeatherMap JSON for one city, keyed by city ID. Processed is my full API list after comfort score and rank. Processed is the one I check first. If it is a HIT, I skip OpenWeatherMap and skip the formula.</p>
+
+  <p class="q">Q5. Why both?</p>
+  <p class="a">A. Raw protects the weather API per city. Processed makes the whole page fast. The assignment says raw is required and processed is preferred. I did both.</p>
+
+  <p class="q">Q6. Walk me through GET /api/weather with cache.</p>
+  <p class="a">A. WeatherService asks WeatherCache for the processed list. If it is fresh, return it (HIT). If not, for each city I try raw cache. HIT uses saved JSON. MISS calls OpenWeatherMap and saves raw. Then I calculate scores, sort, set rank, save the processed list, and return.</p>
+
+  <p class="q">Q7. What is HIT?</p>
+  <p class="a">A. I already have data and it is less than 5 minutes old. I use it. I do not call OpenWeatherMap for that part.</p>
+
+  <p class="q">Q8. What is MISS?</p>
+  <p class="a">A. There is nothing saved, or it is older than 5 minutes. I fetch or rebuild, then save.</p>
+
+  <p class="q">Q9. How do you know it is still fresh?</p>
+  <p class="a">A. Each cache entry has savedAt. Age = now minus savedAt. If age is less than 300 seconds, it is fresh. cache.ttl-seconds in application.properties is 300.</p>
+
+  <p class="q">Q10. Where is this in the code?</p>
+  <p class="a">A. WeatherCache holds the maps. CacheEntry has data and savedAt. WeatherService uses the cache. CacheStatusService builds the debug JSON. WeatherController has GET /api/cache/status next to GET /api/weather.</p>
+
+  <p class="q">Q11. How do you show HIT and MISS?</p>
+  <p class="a">A. GET http://localhost:8080/api/cache/status. lastWeatherRequest is from the last weather call. processed and raw show what is in memory now, with ageSeconds.</p>
+
+  <p class="q">Q12. How do you test it?</p>
+  <p class="a">A. Restart the app so memory is empty. Call /api/weather then /api/cache/status. processed should be MISS. Call /api/weather again. Then status should show HIT. Wait 5 minutes, call weather again, MISS. fetchedAt stays the same on a HIT.</p>
+
+  <p class="q">Q13. Why did /api/cache/status give 404 before?</p>
+  <p class="a">A. The running app was started before that URL existed. Spring 404 means no mapping. I had to stop Java and run mvn spring-boot:run again.</p>
+
+  <p class="q">Q14. What happens if you restart the server?</p>
+  <p class="a">A. The cache is empty. It is only in RAM. That is a trade-off. Redis would keep data after restart, but I do not need Redis for this task.</p>
+
+  <p class="q">Q15. If you change the comfort formula, what should you do?</p>
+  <p class="a">A. Restart the app. If I do not, the processed cache can keep old scores and ranks for up to 5 minutes.</p>
+
+  <p class="q">Q16. Why ConcurrentHashMap?</p>
+  <p class="a">A. More than one request can hit the API at the same time. ConcurrentHashMap is safer than a normal HashMap for that. For this small app a simple Map would often work too.</p>
+
+  <p class="q">Q17. Does cache change the Comfort Index formula?</p>
+  <p class="a">A. No. On a MISS I still use ComfortCalculator the same way. On a HIT I return the list I already scored.</p>
+
+  <p class="q">Q18. Why can weather numbers look the same even without cache?</p>
+  <p class="a">A. OpenWeatherMap current weather often stays the same for many minutes. Cache is still useful because I skip extra HTTP calls. fetchedAt changing vs not changing helps me see HIT vs a new build.</p>
+
+  <p class="q">Q19. What is TTL?</p>
+  <p class="a">A. Time to live. How long we keep data. Mine is 5 minutes. After that, next request is a MISS.</p>
+
+  <p class="q">Q20. Trade-offs?</p>
+  <p class="a">A. Good: fewer API calls, faster, I can show HIT/MISS. Bad: data can be up to 5 minutes old, restart clears cache, formula changes wait until cache dies unless I restart.</p>
+
+  <p class="q">Q21. Would you use Redis?</p>
+  <p class="a">A. Later, if I run more than one server or I need cache after restart. For one local app, in-memory is enough and easier to explain.</p>
+
+  <p class="q">Q22. Does the frontend calculate cache?</p>
+  <p class="a">A. No. Cache is server-side only, like the comfort score.</p>
+
+  <h2>If you get stuck</h2>
+  <p>Draw HIT vs MISS on paper. Point to WeatherCache. Say 5 minutes, in memory, two caches, /api/cache/status. Do not say Redis if it is not in the project.</p>
+</body>
+</html>
